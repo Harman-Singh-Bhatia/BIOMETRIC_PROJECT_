@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="BIOMM 2FA - Biometric Two-Factor Authentication with Air Signature and Fingerprint Verification">
+    <title>BIOMM 2FA — Biometric Security Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="scanline-overlay"></div>
+    <div id="grid-bg"></div>
+
+    <!-- ============ LANDING PAGE ============ -->
+    <div id="page-landing" class="page active">
+        <div class="landing-container">
+            <div class="logo-section">
+                <div class="shield-icon glow-pulse">
+                    <svg viewBox="0 0 64 64" width="80" height="80">
+                        <path d="M32 4L8 16v16c0 14.4 10.2 27.8 24 32 13.8-4.2 24-17.6 24-32V16L32 4z" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+                        <path d="M32 12l-18 9v12c0 11.2 7.9 21.6 18 24.8" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.4"/>
+                        <circle cx="32" cy="32" r="8" fill="none" stroke="var(--accent)" stroke-width="2"/>
+                        <circle cx="32" cy="32" r="3" fill="var(--accent)"/>
+                    </svg>
+                </div>
+                <h1 class="title-glitch" data-text="BIOMM 2FA">BIOMM 2FA</h1>
+                <p class="subtitle">Biometric Two-Factor Authentication</p>
+                <p class="tagline mono">Air Signature · Fingerprint · Secure Access</p>
+            </div>
+            <div class="landing-buttons">
+                <button class="btn btn-primary btn-lg" id="btn-goto-signup" onclick="showPage('signup')">
+                    <span class="btn-icon">+</span> Sign Up
+                </button>
+                <button class="btn btn-secondary btn-lg" id="btn-goto-login" onclick="showPage('login')">
+                    <span class="btn-icon">→</span> Log In
+                </button>
+            </div>
+            <div class="version-tag mono">v2.0 · LOCALHOST SECURE</div>
+        </div>
+    </div>
+
+    <!-- ============ SIGNUP PAGE ============ -->
+    <div id="page-signup" class="page">
+        <div class="page-inner">
+            <div class="stepper" id="signup-stepper">
+                <div class="step active" data-step="1"><span class="step-num">1</span> Fingerprint</div>
+                <div class="step-arrow">→</div>
+                <div class="step" data-step="2"><span class="step-num">2</span> Signature</div>
+                <div class="step-arrow">→</div>
+                <div class="step" data-step="3"><span class="step-num">3</span> Complete</div>
+            </div>
+
+            <!-- Step 1: User ID + Fingerprint link -->
+            <div id="signup-step1" class="step-content active">
+                <div class="glass-card card-md centered-card">
+                    <h2>Create Identity</h2>
+                    <p class="mono hint">A fingerprint image will be linked automatically from the pool.</p>
+                    <div class="input-group">
+                        <label for="signup-uid">User ID</label>
+                        <input type="text" id="signup-uid" placeholder="Enter your user ID" autocomplete="off">
+                    </div>
+                    <button class="btn btn-primary" id="btn-signup-start" onclick="signupStart()">Link Fingerprint</button>
+                    <div id="signup-step1-status" class="status-text"></div>
+                </div>
+            </div>
+
+            <!-- Step 1b: Fingerprint linked confirmation -->
+            <div id="signup-step1b" class="step-content">
+                <div class="glass-card card-md centered-card">
+                    <div class="fp-linked-icon">
+                        <svg viewBox="0 0 100 100" width="80" height="80" class="fp-svg-icon">
+                            <ellipse cx="50" cy="50" rx="30" ry="38" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.3"/>
+                            <ellipse cx="50" cy="50" rx="22" ry="30" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.5"/>
+                            <ellipse cx="50" cy="50" rx="14" ry="22" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.7"/>
+                            <ellipse cx="50" cy="50" rx="6" ry="14" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.9"/>
+                            <circle cx="50" cy="50" r="3" fill="var(--accent)"/>
+                        </svg>
+                    </div>
+                    <h2 class="success-text">Fingerprint Linked</h2>
+                    <p class="mono" id="signup-linked-file"></p>
+                    <p class="hint">Now enroll your air signature (5 samples).</p>
+                    <button class="btn btn-primary" onclick="signupGoToSignature()">Start Signature Enrollment</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Air Signature Enrollment -->
+            <div id="signup-step2" class="step-content">
+                <div class="camera-container">
+                    <div class="camera-header">
+                        <span class="mono">AIR SIGNATURE · ENROLL</span>
+                        <span class="mono" id="signup-cam-info">gesture: — | fps: —</span>
+                    </div>
+                    <div class="camera-wrap">
+                        <video id="signup-video" autoplay playsinline muted></video>
+                        <canvas id="signup-canvas"></canvas>
+                        <div class="pen-cursor" id="signup-cursor"></div>
+                        <div class="banner-overlay" id="signup-banner"></div>
+                    </div>
+                    <div class="cam-controls">
+                        <div class="pinch-meter">
+                            <span class="mono">PINCH</span>
+                            <div class="meter-bar"><div class="meter-fill" id="signup-pinch-fill"></div><div class="meter-threshold" id="signup-pinch-thr"></div></div>
+                        </div>
+                        <div class="enroll-progress">
+                            <span class="mono" id="signup-progress-text">SAVED 0/5</span>
+                            <div class="progress-bar"><div class="progress-fill" id="signup-progress-fill"></div></div>
+                        </div>
+                    </div>
+                    <div class="status-bar mono" id="signup-status">Pinch thumb + index to draw · Palm to submit</div>
+                </div>
+            </div>
+
+            <!-- Step 3: Complete -->
+            <div id="signup-step3" class="step-content">
+                <div class="glass-card card-md centered-card">
+                    <div class="success-icon glow-pulse">
+                        <svg viewBox="0 0 64 64" width="72" height="72">
+                            <circle cx="32" cy="32" r="28" fill="none" stroke="var(--success)" stroke-width="2.5"/>
+                            <path d="M20 32l8 8 16-16" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h2 class="success-text">Account Active</h2>
+                    <p class="mono hint" id="signup-complete-info"></p>
+                    <button class="btn btn-primary" onclick="showPage('login')">Go to Login</button>
+                </div>
+            </div>
+
+            <button class="btn-back" onclick="showPage('landing')">← Back</button>
+        </div>
+    </div>
+
+    <!-- ============ LOGIN PAGE ============ -->
+    <div id="page-login" class="page">
+        <div class="page-inner">
+            <div class="stepper" id="login-stepper">
+                <div class="step active" data-step="1"><span class="step-num">1</span> Signature</div>
+                <div class="step-arrow">→</div>
+                <div class="step" data-step="2"><span class="step-num">2</span> Fingerprint</div>
+                <div class="step-arrow">→</div>
+                <div class="step" data-step="3"><span class="step-num">3</span> Access</div>
+            </div>
+
+            <!-- Step 1: User ID -->
+            <div id="login-step0" class="step-content active">
+                <div class="glass-card card-md centered-card">
+                    <h2>Authenticate</h2>
+                    <p class="mono hint">Leave blank to auto-identify by signature.</p>
+                    <div class="input-group">
+                        <label for="login-uid">User ID (optional)</label>
+                        <input type="text" id="login-uid" placeholder="Leave blank for auto-identify" autocomplete="off">
+                    </div>
+                    <button class="btn btn-primary" id="btn-login-start" onclick="loginStart()">Begin Verification</button>
+                </div>
+            </div>
+
+            <!-- Step 1b: Camera Signature -->
+            <div id="login-step1" class="step-content">
+                <div class="camera-container">
+                    <div class="camera-header">
+                        <span class="mono" id="login-mode-label">AIR SIGNATURE · VERIFY</span>
+                        <span class="mono" id="login-cam-info">gesture: — | fps: —</span>
+                    </div>
+                    <div class="camera-wrap">
+                        <video id="login-video" autoplay playsinline muted></video>
+                        <canvas id="login-canvas"></canvas>
+                        <div class="pen-cursor" id="login-cursor"></div>
+                        <div class="banner-overlay" id="login-banner"></div>
+                    </div>
+                    <div class="cam-controls">
+                        <div class="pinch-meter">
+                            <span class="mono">PINCH</span>
+                            <div class="meter-bar"><div class="meter-fill" id="login-pinch-fill"></div><div class="meter-threshold" id="login-pinch-thr"></div></div>
+                        </div>
+                        <div class="tries-display mono" id="login-tries">3 tries left</div>
+                    </div>
+                    <div class="status-bar mono" id="login-status">Pinch thumb + index to draw · Palm to submit</div>
+                </div>
+            </div>
+
+            <!-- Step 2: Fingerprint Scanning -->
+            <div id="login-step2" class="step-content">
+                <div class="fp-scan-container">
+                    <div class="glass-card card-lg centered-card fp-card">
+                        <div class="fp-scan-ring glow-pulse">
+                            <div class="fp-scan-icon" id="fp-scan-icon">
+                                <svg viewBox="0 0 120 120" width="120" height="120" class="fp-svg-main">
+                                    <ellipse cx="60" cy="60" rx="38" ry="48" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity="0.25"/>
+                                    <ellipse cx="60" cy="60" rx="30" ry="40" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity="0.35"/>
+                                    <ellipse cx="60" cy="60" rx="22" ry="32" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity="0.5"/>
+                                    <ellipse cx="60" cy="60" rx="14" ry="24" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity="0.65"/>
+                                    <ellipse cx="60" cy="60" rx="7" ry="16" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity="0.8"/>
+                                    <circle cx="60" cy="60" r="3" fill="var(--accent)"/>
+                                </svg>
+                                <div class="laser-line" id="fp-laser"></div>
+                            </div>
+                        </div>
+                        <div class="fp-status-text mono" id="fp-status-text">Signature accepted</div>
+                        <div class="fp-progress">
+                            <div class="progress-bar"><div class="progress-fill" id="fp-progress-fill"></div></div>
+                            <span class="mono fp-points" id="fp-points-count">0 points</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2b: Fingerprint Result -->
+            <div id="login-step2b" class="step-content">
+                <div class="glass-card card-md centered-card" id="fp-result-card">
+                    <div id="fp-result-icon"></div>
+                    <h2 id="fp-result-title" class="mono"></h2>
+                    <p id="fp-result-detail" class="mono hint"></p>
+                    <button class="btn btn-secondary" id="fp-retry-btn" style="display:none" onclick="showPage('login')">Try Again</button>
+                </div>
+            </div>
+
+            <button class="btn-back" id="login-back-btn" onclick="showPage('landing')">← Back</button>
+        </div>
+    </div>
+
+    <!-- ============ SAFE AREA ============ -->
+    <div id="page-safe" class="page">
+        <div class="safe-topbar">
+            <div class="safe-left">
+                <svg viewBox="0 0 32 32" width="24" height="24" class="shield-sm">
+                    <path d="M16 2L4 8v8c0 7.2 5.1 13.9 12 16 6.9-2.1 12-8.8 12-16V8L16 2z" fill="none" stroke="var(--success)" stroke-width="2"/>
+                    <circle cx="16" cy="16" r="4" fill="var(--success)"/>
+                </svg>
+                <span class="safe-title">SAFE AREA</span>
+                <span class="mono safe-user" id="safe-user-id"></span>
+            </div>
+            <div class="safe-right">
+                <span class="badge badge-green" id="safe-badge">SECURE SESSION</span>
+                <button class="btn btn-danger btn-sm" id="btn-logout" onclick="doLogout()">Logout</button>
+            </div>
+        </div>
+        <div class="safe-content">
+            <div class="vault-animation" id="vault-anim">
+                <svg viewBox="0 0 96 96" width="96" height="96" class="lock-icon" id="lock-icon">
+                    <rect x="24" y="44" width="48" height="36" rx="6" fill="none" stroke="var(--success)" stroke-width="2.5"/>
+                    <path id="lock-shackle" d="M32 44V32a16 16 0 0 1 32 0v12" fill="none" stroke="var(--success)" stroke-width="2.5" class="shackle-open"/>
+                    <circle cx="48" cy="58" r="5" fill="var(--success)"/>
+                    <line x1="48" y1="63" x2="48" y2="72" stroke="var(--success)" stroke-width="2.5"/>
+                </svg>
+                <div class="vault-glow"></div>
+            </div>
+            <h2 class="safe-welcome" id="safe-welcome"></h2>
+            <p class="mono safe-time" id="safe-login-time"></p>
+
+            <div class="safe-cards">
+                <div class="glass-card card-sm">
+                    <h3>Verification Summary</h3>
+                    <div class="summary-grid" id="safe-summary">
+                        <div class="summary-item"><span class="label">Signature Score</span><span class="value" id="safe-sig-score">—</span></div>
+                        <div class="summary-item"><span class="label">Fingerprint Score</span><span class="value" id="safe-fp-score">—</span></div>
+                        <div class="summary-item"><span class="label">Matched Pairs</span><span class="value" id="safe-fp-pairs">—</span></div>
+                    </div>
+                </div>
+                <div class="glass-card card-sm">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list mono" id="safe-activity">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session expired overlay -->
+    <div id="session-expired-overlay" class="overlay" style="display:none">
+        <div class="glass-card card-md centered-card">
+            <h2 class="error-text">Session Expired</h2>
+            <p class="mono hint">Your session has expired due to inactivity.</p>
+            <button class="btn btn-primary" onclick="window.location.href='/'">Return to Login</button>
+        </div>
+    </div>
+
+    <!-- Camera permission dialog -->
+    <div id="camera-permission-overlay" class="overlay" style="display:none">
+        <div class="glass-card card-md centered-card">
+            <div class="cam-perm-icon">📷</div>
+            <h2>Camera Access Required</h2>
+            <p class="hint">BIOMM 2FA needs your camera for air signature recognition.<br>No video is recorded or uploaded — only hand landmark coordinates are processed.</p>
+            <button class="btn btn-primary" id="btn-allow-camera">Allow Camera</button>
+            <p class="mono error-text" id="cam-error-text" style="display:none"></p>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=2" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+biometric_2fa_data/
